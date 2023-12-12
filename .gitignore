@@ -40,3 +40,5 @@ tlvdecode
 
 # SonarQube default work directory
 .scannerwork
+#Build folders
+*/build/*
