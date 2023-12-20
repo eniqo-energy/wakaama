@@ -44,5 +44,6 @@ lwm2mclient_tinydtls
 */build/client/build/*
 */build/server/build/*
 
-examples/*
+examples/server/build/*
+examples/client/build/*
 external_tinydtls-prefix/*
