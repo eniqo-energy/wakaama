@@ -4,8 +4,8 @@ set (CMAKE_CXX_STANDARD 11)
 
 project (build-node-addon-api-with-cmake)
 include_directories(${CMAKE_JS_INC})
-file(GLOB SOURCE_FILES "src/hello.c")
-file(GLOB SOURCE_FILES "src/functions.c")
+file(GLOB SOURCE_FILES "src/hello.c" "src/func.c" "src/func.h")
+# file(GLOB SOURCE_FILES "src/functions.c")
 # file(GLOB SOURCE_FILES "src/functions.h")
 
 
