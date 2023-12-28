@@ -1,0 +1,4 @@
+# ninja log v5
+0	15	1703784092294206389	CMakeFiles/build-node-addon-api-with-cmake.dir/src/func.c.o	391c1d0dede506f4
+0	30	1703784092310206333	CMakeFiles/build-node-addon-api-with-cmake.dir/src/hello.c.o	1847a55ad743ada0
+0	142	1703784092422205940	CMakeFiles/build-node-addon-api-with-cmake.dir/src/commandline.c.o	e95a4ccb26332762

@@ -3,8 +3,9 @@ cmake_policy(SET CMP0042 NEW)
 set (CMAKE_CXX_STANDARD 11)
 
 project (build-node-addon-api-with-cmake)
+include(../../wakaama.cmake)
 include_directories(${CMAKE_JS_INC})
-file(GLOB SOURCE_FILES "src/hello.c" "src/func.c" "src/func.h")
+file(GLOB SOURCE_FILES "src/hello.c" "src/func.c" "src/func.h" "src/liblwm2m.h" "src/commandline.c" "src/commandline.h" "src/connection.c" "src/connection.h" "src/dtlsconnection.c" "src/dtlsconnection.h" "src/lwm2mserver.c" "src/lwm2mserver.h")
 # file(GLOB SOURCE_FILES "src/functions.c")
 # file(GLOB SOURCE_FILES "src/functions.h")
 
