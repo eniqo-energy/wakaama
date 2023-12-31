@@ -1114,7 +1114,7 @@ void startCoapServer() {
     connection_free(connList);
 }
 const char *testLink() {
-    const char *mystr = "A";
+    const char *mystr = "Hello from Wakaama!!!";
     return mystr;
 }
 int main(int argc, char *argv[]) {

@@ -6,7 +6,7 @@ const char *c_hello2() {
 }
 
 const char *c_hello() {
-    const char *mystr = "Hello World!\n";
+    const char *mystr = "Hello World from custom c file!\n";
     return mystr;
 }
 // const char *testLink() { return "H"; }
