@@ -47,3 +47,6 @@ lwm2mclient_tinydtls
 examples/server/build/*
 examples/client/build/*
 external_tinydtls-prefix/*
+.vscode
+*.ninja_deps
+*.ninja_log

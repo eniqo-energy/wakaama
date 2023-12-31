@@ -72,7 +72,7 @@
 
 #include "commandline.h"
 #include "connection.h"
-
+#include "lwm2mserver.h"
 #define MAX_PACKET_SIZE 2048
 
 static int g_quit = 0;
@@ -1113,7 +1113,10 @@ void startCoapServer() {
     close(sock);
     connection_free(connList);
 }
-
+const char *testLink() {
+    const char *mystr = "Hello from  Wakaama server source !!!";
+    return mystr;
+}
 int main(int argc, char *argv[]) {
     // int addressFamily = AF_INET6;
     int opt;
