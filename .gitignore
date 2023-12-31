@@ -46,6 +46,7 @@ lwm2mclient_tinydtls
 
 examples/server/build/*
 examples/client/build/*
+examples/native-node-client/build/*
 external_tinydtls-prefix/*
 .vscode
 *.ninja_deps
