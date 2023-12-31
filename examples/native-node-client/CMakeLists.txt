@@ -9,7 +9,7 @@ include_directories(${CMAKE_JS_INC})
 
 include(../../wakaama.cmake)
 
-file(GLOB SOURCE_FILES "src/func.c" "src/func.h" "src/lwm2mserver.c" "src/interface.c")
+file(GLOB SOURCE_FILES "src/func.c" "src/func.h" "../server/lwm2mserver.c" "src/interface.c")
 add_library(${PROJECT_NAME} SHARED ${SOURCE_FILES} ${CMAKE_JS_SRC})
 target_compile_definitions(${PROJECT_NAME} PRIVATE LWM2M_SERVER_MODE)
 
