@@ -37,6 +37,18 @@ core/cmake_install.cmake
 lwm2mclient
 lwm2mserver
 tlvdecode
-
+lwm2mclient_tinydtls
 # SonarQube default work directory
 .scannerwork
+#Build folders
+*/build/client/build/*
+*/build/server/build/*
+
+examples/server/build/*
+examples/client/build/*
+examples/native-node-client/build/*
+examples/native-node-client/node_modules/*
+external_tinydtls-prefix/*
+.vscode
+*.ninja_deps
+*.ninja_log
