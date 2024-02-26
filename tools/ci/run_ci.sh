@@ -21,7 +21,7 @@ readonly SCRIPT_NAME="$(basename "$0")"
 
 CMAKE_ARGS="-DCMAKE_BUILD_TYPE=RelWithDebInfo"
 OPT_BRANCH_SOURCE=
-OPT_BRANCH_TARGET=master
+OPT_BRANCH_TARGET=main
 OPT_C_EXTENSIONS=""
 OPT_C_STANDARD=""
 OPT_CLANG_FORMAT="clang-format-14"
@@ -372,8 +372,13 @@ if [ -n "${OPT_TEST_COVERAGE_REPORT}" ]; then
 fi
 
 if [ -n "${OPT_SCAN_BUILD}" ]; then
+  # Excluding tests as `scan-build` does not know macros of
+  # `CUnit` which leads to a lot of noisy issues in the report.
+  # Also ignoring third-party `tinydtls` library.
   OPT_WRAPPER_CMD="${OPT_SCAN_BUILD} \
-    -o build-wakaama/clang-static-analyzer"
+    -o build-wakaama/clang-static-analyzer \
+    --exclude tests \
+    --exclude examples/shared/tinydtls"
 fi
 
 # Run Steps
