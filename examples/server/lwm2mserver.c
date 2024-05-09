@@ -77,12 +77,23 @@
 
 static int g_quit = 0;
 
+/**
+ * @brief Prints an error message based on the provided status.
+ * 
+ * @param status The status code representing the error.
+ */
 static void prv_print_error(uint8_t status) {
     fprintf(stdout, "Error: ");
     print_status(stdout, status);
     fprintf(stdout, "\r\n");
 }
 
+/**
+ * @brief Returns a string representation of the provided LwM2M version.
+ * 
+ * @param version The LwM2M version.
+ * @returns A string representing the LwM2M version.
+ */
 static const char *prv_dump_version(lwm2m_version_t version) {
     switch (version) {
     case VERSION_MISSING:
@@ -98,6 +109,11 @@ static const char *prv_dump_version(lwm2m_version_t version) {
     }
 }
 
+/**
+ * @brief Prints the binding mode of a client.
+ * 
+ * @param binding The binding mode of the client.
+ */
 static void prv_dump_binding(lwm2m_binding_t binding) {
     if (BINDING_UNKNOWN == binding) {
         fprintf(stdout, "\tbinding: \"Not specified\"\r\n");
@@ -126,6 +142,11 @@ static void prv_dump_binding(lwm2m_binding_t binding) {
     }
 }
 
+/**
+ * @brief Prints details of a client.
+ * 
+ * @param targetP Pointer to the client structure.
+ */
 static void prv_dump_client(lwm2m_client_t *targetP) {
     lwm2m_client_object_t *objectP;
 
@@ -161,6 +182,13 @@ static void prv_dump_client(lwm2m_client_t *targetP) {
     fprintf(stdout, "\r\n");
 }
 
+/**
+ * @brief Prints details of all registered clients.
+ * 
+ * @param lwm2mH    Pointer to the LwM2M context.
+ * @param buffer    Buffer for output.
+ * @param user_data User data (unused).
+ */
 static void prv_output_clients(lwm2m_context_t *lwm2mH, char *buffer, void *user_data) {
     lwm2m_client_t *targetP;
 
@@ -179,6 +207,13 @@ static void prv_output_clients(lwm2m_context_t *lwm2mH, char *buffer, void *user
     }
 }
 
+/**
+ * @brief Reads an ID from a buffer.
+ * 
+ * @param buffer Buffer containing the ID.
+ * @param idP    Pointer to store the read ID.
+ * @returns The number of items successfully read.
+ */
 static int prv_read_id(char *buffer, uint16_t *idP) {
     int nb;
     int value;
@@ -195,6 +230,11 @@ static int prv_read_id(char *buffer, uint16_t *idP) {
     return nb;
 }
 
+/**
+ * @brief Prints a URI.
+ * 
+ * @param uriP Pointer to the URI structure.
+ */
 static void prv_printUri(const lwm2m_uri_t *uriP) {
     fprintf(stdout, "/%d", uriP->objectId);
     if (LWM2M_URI_IS_SET_INSTANCE(uriP))
@@ -211,6 +251,19 @@ static void prv_printUri(const lwm2m_uri_t *uriP) {
 #endif
 }
 
+/**
+ * @brief Callback function to handle result of an operation.
+ * 
+ * @param contextP    Pointer to the LwM2M context.
+ * @param clientID    ID of the client.
+ * @param uriP        Pointer to the URI structure.
+ * @param status      Status of the operation.
+ * @param block_info  Pointer to block information.
+ * @param format      Media type format.
+ * @param data        Pointer to data.
+ * @param dataLength: Length of the data.
+ * @param userData:   User data (unused).
+ */
 static void prv_result_callback(lwm2m_context_t *contextP, uint16_t clientID, lwm2m_uri_t *uriP, int status,
                                 block_info_t *block_info, lwm2m_media_type_t format, uint8_t *data, size_t dataLength,
                                 void *userData) {
@@ -230,6 +283,19 @@ static void prv_result_callback(lwm2m_context_t *contextP, uint16_t clientID, lw
     fflush(stdout);
 }
 
+/**
+ * @brief Callback function to handle notifications.
+ * 
+ * @param contextP    Pointer to the LwM2M context.
+ * @param clientID    ID of the client.
+ * @param uriP        Pointer to the URI structure.
+ * @param count       Notification count.
+ * @param block_info  Pointer to block information.
+ * @param format      Media type format.
+ * @param data        Pointer to data.
+ * @param dataLength: Length of the data.
+ * @param userData:   User data (unused).
+ */
 static void prv_notify_callback(lwm2m_context_t *contextP, uint16_t clientID, lwm2m_uri_t *uriP, int count,
                                 block_info_t *block_info, lwm2m_media_type_t format, uint8_t *data, size_t dataLength,
                                 void *userData) {
@@ -247,6 +313,13 @@ static void prv_notify_callback(lwm2m_context_t *contextP, uint16_t clientID, lw
     fflush(stdout);
 }
 
+/**
+ * @brief Reads data from a client.
+ * 
+ * @param lwm2mH    Pointer to the LwM2M context.
+ * @param buffer    Buffer containing client data.
+ * @param user_data User data (unused).
+ */
 static void prv_read_client(lwm2m_context_t *lwm2mH, char *buffer, void *user_data) {
     uint16_t clientId;
     lwm2m_uri_t uri;
@@ -284,6 +357,13 @@ syntax_error:
     fprintf(stdout, "Syntax error !");
 }
 
+/**
+ * @brief Discovers resources of a client.
+ * 
+ * @param lwm2mH    Pointer to the LwM2M context.
+ * @param buffer    Buffer containing client data.
+ * @param user_data User data (unused).
+ */
 static void prv_discover_client(lwm2m_context_t *lwm2mH, char *buffer, void *user_data) {
     uint16_t clientId;
     lwm2m_uri_t uri;
@@ -321,6 +401,13 @@ syntax_error:
     fprintf(stdout, "Syntax error !");
 }
 
+/**
+ * @brief Writes data to a client.
+ * 
+ * @param buffer        Buffer containing client data.
+ * @param lwm2mH        Pointer to the LwM2M context.
+ * @param partialUpdate Flag indicating whether it's a partial update.
+ */
 static void prv_do_write_client(char *buffer, lwm2m_context_t *lwm2mH, bool partialUpdate) {
     uint16_t clientId;
     lwm2m_uri_t uri;
@@ -394,6 +481,13 @@ syntax_error:
     fprintf(stdout, "Syntax error !");
 }
 
+/**
+ * @brief Writes data to the LwM2M client.
+ * 
+ * @param lwm2mH    Pointer to the LwM2M context.
+ * @param buffer    Data buffer containing information to be written.
+ * @param user_data User data (unused).
+ */
 static void prv_write_client(lwm2m_context_t *lwm2mH, char *buffer, void *user_data) {
     /* unused parameter */
     (void)user_data;
@@ -401,6 +495,13 @@ static void prv_write_client(lwm2m_context_t *lwm2mH, char *buffer, void *user_d
     prv_do_write_client(buffer, lwm2mH, false);
 }
 
+/**
+ * @brief Updates data on the LwM2M client.
+ * 
+ * @param lwm2mH    Pointer to the LwM2M context.
+ * @param buffer    Data buffer containing information to be updated.
+ * @param user_data User data (unused).
+ */
 static void prv_update_client(lwm2m_context_t *lwm2mH, char *buffer, void *user_data) {
     /* unused parameter */
     (void)user_data;
@@ -408,6 +509,13 @@ static void prv_update_client(lwm2m_context_t *lwm2mH, char *buffer, void *user_
     prv_do_write_client(buffer, lwm2mH, true);
 }
 
+/**
+ * @brief Sets time-related attributes for the LwM2M client.
+ * 
+ * @param lwm2mH    Pointer to the LwM2M context.
+ * @param buffer    Data buffer containing attribute information.
+ * @param user_data User data (unused).
+ */
 static void prv_time_client(lwm2m_context_t *lwm2mH, char *buffer, void *user_data) {
     uint16_t clientId;
     lwm2m_uri_t uri;
@@ -473,6 +581,13 @@ syntax_error:
     fprintf(stdout, "Syntax error !");
 }
 
+/**
+ * @brief Sets value-related attributes for the LwM2M client.
+ * 
+ * @param lwm2mH    Pointer to the LwM2M context.
+ * @param buffer    Data buffer containing attribute information.
+ * @param user_data User data (unused).
+ */
 static void prv_attr_client(lwm2m_context_t *lwm2mH, char *buffer, void *user_data) {
     uint16_t clientId;
     lwm2m_uri_t uri;
@@ -544,6 +659,13 @@ syntax_error:
     fprintf(stdout, "Syntax error !");
 }
 
+/**
+ * @brief Clears attributes for the LwM2M client.
+ * 
+ * @param lwm2mH    Pointer to the LwM2M context.
+ * @param buffer    Data buffer containing attribute information.
+ * @param user_data User data (unused).
+ */
 static void prv_clear_client(lwm2m_context_t *lwm2mH, char *buffer, void *user_data) {
     uint16_t clientId;
     lwm2m_uri_t uri;
@@ -587,6 +709,13 @@ syntax_error:
     fprintf(stdout, "Syntax error !");
 }
 
+/**
+ * @brief Executes a command on the LwM2M client.
+ * 
+ * @param lwm2mH    Pointer to the LwM2M context.
+ * @param buffer    Data buffer containing command information.
+ * @param user_data User data (unused).
+ */
 static void prv_exec_client(lwm2m_context_t *lwm2mH, char *buffer, void *user_data) {
     uint16_t clientId;
     lwm2m_uri_t uri;
@@ -631,6 +760,13 @@ syntax_error:
     fprintf(stdout, "Syntax error !");
 }
 
+/**
+ * @brief Creates a new object instance on the LwM2M client.
+ * 
+ * @param lwm2mH    Pointer to the LwM2M context.
+ * @param buffer    Data buffer containing object instance information.
+ * @param user_data User data (unused).
+ */
 static void prv_create_client(lwm2m_context_t *lwm2mH, char *buffer, void *user_data) {
     uint16_t clientId;
     lwm2m_uri_t uri;
@@ -735,6 +871,13 @@ syntax_error:
     fprintf(stdout, "Syntax error !");
 }
 
+/**
+ * @brief Deletes an object instance on the LwM2M client.
+ * 
+ * @param lwm2mH    Pointer to the LwM2M context.
+ * @param buffer    Data buffer containing object instance information.
+ * @param user_data User data (unused).
+ */
 static void prv_delete_client(lwm2m_context_t *lwm2mH, char *buffer, void *user_data) {
     uint16_t clientId;
     lwm2m_uri_t uri;
@@ -772,6 +915,13 @@ syntax_error:
     fprintf(stdout, "Syntax error !");
 }
 
+/**
+ * @brief Observes a resource on the LwM2M client.
+ * 
+ * @param lwm2mH    Pointer to the LwM2M context.
+ * @param buffer    Data buffer containing observation information.
+ * @param user_data User data (unused).
+ */
 static void prv_observe_client(lwm2m_context_t *lwm2mH, char *buffer, void *user_data) {
     uint16_t clientId;
     lwm2m_uri_t uri;
@@ -809,6 +959,13 @@ syntax_error:
     fprintf(stdout, "Syntax error !");
 }
 
+/**
+ * @brief Cancels an observation on the LwM2M client.
+ * 
+ * @param lwm2mH    Pointer to the LwM2M context.
+ * @param buffer    Data buffer containing observation cancellation information.
+ * @param user_data User data (unused).
+ */
 static void prv_cancel_client(lwm2m_context_t *lwm2mH, char *buffer, void *user_data) {
     uint16_t clientId;
     lwm2m_uri_t uri;
@@ -846,6 +1003,19 @@ syntax_error:
     fprintf(stdout, "Syntax error !");
 }
 
+/**
+ * @brief Callback function for monitoring client registrations, updates, and unregistrations.
+ * 
+ * @param lwm2mH     Pointer to the LwM2M context.
+ * @param clientID   ID of the client.
+ * @param uriP       Pointer to the URI structure.
+ * @param status     Status of the operation.
+ * @param block_info Pointer to block information.
+ * @param format     Media format of the data.
+ * @param data       Pointer to the data.
+ * @param dataLength Length of the data.
+ * @param userData   User data (unused).
+ */
 static void prv_monitor_callback(lwm2m_context_t *lwm2mH, uint16_t clientID, lwm2m_uri_t *uriP, int status,
                                  block_info_t *block_info, lwm2m_media_type_t format, uint8_t *data, size_t dataLength,
                                  void *userData) {
@@ -884,16 +1054,32 @@ static void prv_monitor_callback(lwm2m_context_t *lwm2mH, uint16_t clientID, lwm
     fflush(stdout);
 }
 
+/**
+ * @brief Callback function to quit the LwM2M server. 
+ * 
+ * @param lwm2mH    Pointer to the LwM2M context (unused).
+ * @param buffer    Pointer to the data buffer.
+ * @param user_data User data (unused).
+ */
 static void prv_quit(lwm2m_context_t *lwm2mH, char *buffer, void *user_data) {
     /* unused parameters */
     (void)lwm2mH;
     (void)user_data;
 
+    // Set the quit flag to terminate the program
     g_quit = 1;
 }
 
+/**
+ * @brief Handles the SIGINT signal to quit the server.
+ * 
+ * @param signum Signal number.
+ */
 void handle_sigint(int signum) { g_quit = 2; }
 
+/**
+ * @brief Prints usage information for the server.
+ */
 void print_usage(void) {
     fprintf(stderr, "Usage: lwm2mserver [OPTION]\r\n");
     fprintf(stderr, "Launch a LWM2M server on localhost.\r\n\n");
@@ -905,6 +1091,9 @@ void print_usage(void) {
     fprintf(stdout, "\r\n");
 }
 
+/**
+ * @brief Array containing command descriptions.
+ */
 command_desc_t commands[] = {{"list", "List registered clients.", NULL, prv_output_clients, NULL},
                              {"read", "Read from a client.",
                               " read CLIENT# URI\r\n"
@@ -992,6 +1181,9 @@ command_desc_t commands[] = {{"list", "List registered clients.", NULL, prv_outp
 
                              COMMAND_END_LIST};
 
+/**
+ * @brief Starts the CoAP server.
+ */
 void startCoapServer() {
     int sock;
     const char *localPort = LWM2M_STANDARD_PORT_STR;
@@ -1113,10 +1305,24 @@ void startCoapServer() {
     close(sock);
     connection_free(connList);
 }
+
+/**
+ * @brief Returns a test link.
+ * 
+ * @return Test link string.
+ */
 const char *testLink() {
     const char *mystr = "Hello from  Wakaama server source !!!";
     return mystr;
 }
+
+/**
+ * @brief Main function.
+ * 
+ * @param argc Argument count - number of arguments.
+ * @param argv Argument vector.
+ * @return Execution status.
+ */
 int main(int argc, char *argv[]) {
     // int addressFamily = AF_INET6;
     int opt;
