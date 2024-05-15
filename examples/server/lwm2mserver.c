@@ -73,8 +73,16 @@
 #include "commandline.h"
 #include "connection.h"
 #include "lwm2mserver.h"
+
+// Maximum size of a information packet in bytes
+// Used for retrieving the data received
 #define MAX_PACKET_SIZE 2048
 
+// Flag indicating program termination
+// Possible values: 
+//     0 - Default value
+//     1 - Terminate the program forcefully
+//     2 - Initiation of a graceful shutdown
 static int g_quit = 0;
 
 /**
@@ -208,7 +216,7 @@ static void prv_output_clients(lwm2m_context_t *lwm2mH, char *buffer, void *user
 }
 
 /**
- * @brief Reads an ID from a buffer.
+ * @brief Reads an ID of the client from a buffer.
  * 
  * @param buffer Buffer containing the ID.
  * @param idP    Pointer to store the read ID.
@@ -388,6 +396,10 @@ static void prv_discover_client(lwm2m_context_t *lwm2mH, char *buffer, void *use
     if (!check_end_of_args(end))
         goto syntax_error;
 
+    // Performing Discovering of client based of its client ID.
+    // Creates, adjusts and sends get request to discover client.
+    // Returns 404 or 500 response if there are issues with finding the client,
+    // creating the transaction, or allocating memory for custom data.
     result = lwm2m_dm_discover(lwm2mH, clientId, &uri, prv_result_callback, NULL);
 
     if (result == 0) {
@@ -482,7 +494,7 @@ syntax_error:
 }
 
 /**
- * @brief Writes data to the LwM2M client.
+ * @brief Wrapper for prv_do_write_client method.
  * 
  * @param lwm2mH    Pointer to the LwM2M context.
  * @param buffer    Data buffer containing information to be written.
@@ -496,7 +508,7 @@ static void prv_write_client(lwm2m_context_t *lwm2mH, char *buffer, void *user_d
 }
 
 /**
- * @brief Updates data on the LwM2M client.
+ * @brief Wrapper for prv_update_client method.
  * 
  * @param lwm2mH    Pointer to the LwM2M context.
  * @param buffer    Data buffer containing information to be updated.
@@ -521,7 +533,7 @@ static void prv_time_client(lwm2m_context_t *lwm2mH, char *buffer, void *user_da
     lwm2m_uri_t uri;
     char *end = NULL;
     int result;
-    lwm2m_attributes_t attr;
+    lwm2m_attributes_t attr; // Defined in liblwm2m.h, line: 676
     int nb;
     int value;
 
@@ -593,7 +605,7 @@ static void prv_attr_client(lwm2m_context_t *lwm2mH, char *buffer, void *user_da
     lwm2m_uri_t uri;
     char *end = NULL;
     int result;
-    lwm2m_attributes_t attr;
+    lwm2m_attributes_t attr; // Defined in liblwm2m.h, line: 676
     int nb;
     float value;
 
@@ -1185,50 +1197,60 @@ command_desc_t commands[] = {{"list", "List registered clients.", NULL, prv_outp
  * @brief Starts the CoAP server.
  */
 void startCoapServer() {
-    int sock;
-    const char *localPort = LWM2M_STANDARD_PORT_STR;
-    int addressFamily = AF_INET6;
-    lwm2m_context_t *lwm2mH = NULL;
-    connection_t *connList = NULL;
-    struct timeval tv;
-    int result;
-    fd_set readfds;
+    int sock;                                         // Socket file descriptor.
+    const char *localPort = LWM2M_STANDARD_PORT_STR;  // Port number for CoAP server: 5683.
+    int addressFamily = AF_INET6;                     // Address family for socket.
+    lwm2m_context_t *lwm2mH = NULL;                   // LwM2M context pointer.
+    connection_t *connList = NULL;                    // List of connections.
+    struct timeval tv;                                // Timeout value for select().
+    int result;                                       // Result of operations.
+    fd_set readfds;                                   // Set of file descriptors for select().
 
+    // Open socket for CoAP server.
     sock = create_socket(localPort, addressFamily);
     if (sock < 0) {
         fprintf(stderr, "Error opening socket: %d\r\n", errno);
         // return -1;
     }
 
+    // Initialize LwM2M context.
     lwm2mH = lwm2m_init(NULL);
     if (NULL == lwm2mH) {
         fprintf(stderr, "lwm2m_init() failed\r\n");
         // return -1;
     }
 
+    // Set signal handler for SIGINT (Ctrl+C).
     signal(SIGINT, handle_sigint);
 
     fprintf(stdout, "> ");
     fflush(stdout);
 
+    // Set callback function monitoring of client registrations, updates, and unregistrations.
     lwm2m_set_monitoring_callback(lwm2mH, prv_monitor_callback, NULL);
 
+    // Main loop, iterates until quit flag is set
     while (0 == g_quit) {
-        FD_ZERO(&readfds);
-        FD_SET(sock, &readfds);
-        FD_SET(STDIN_FILENO, &readfds);
+        FD_ZERO(&readfds);              // Initialize file descriptor set.
+        FD_SET(sock, &readfds);         // Add socket to set.
+        FD_SET(STDIN_FILENO, &readfds); // Add stdin to set.
 
-        tv.tv_sec = 60;
+        tv.tv_sec = 60;  // Timeout for select() (60 seconds).
         tv.tv_usec = 0;
 
+        // Perform LwM2M processing step and adjust timeout to the max time interval to wait.
+        // Returns 0 if everything is okay, other value if not
         result = lwm2m_step(lwm2mH, &(tv.tv_sec));
+        // Check for error
         if (result != 0) {
             fprintf(stderr, "lwm2m_step() failed: 0x%X\r\n", result);
             // return -1;
         }
 
+        // Wait for activity on sockets or stdin or timeout.
+        // Defined in select.h, line: 102
         result = select(FD_SETSIZE, &readfds, 0, 0, &tv);
-
+        // Check for error
         if (result < 0) {
             if (errno != EINTR) {
                 fprintf(stderr, "Error in select(): %d\r\n", errno);
@@ -1236,74 +1258,93 @@ void startCoapServer() {
         } else if (result > 0) {
             uint8_t buffer[MAX_PACKET_SIZE];
             ssize_t numBytes;
-
+            // Check if data is available on socket.
             if (FD_ISSET(sock, &readfds)) {
                 struct sockaddr_storage addr;
                 socklen_t addrLen;
 
                 addrLen = sizeof(addr);
+                // Receive data from socket.
                 numBytes = recvfrom(sock, buffer, MAX_PACKET_SIZE, 0, (struct sockaddr *)&addr, &addrLen);
 
+                // Check for error and does size of packet is bigger than max packet size - 2048 bytes
                 if (numBytes == -1) {
                     fprintf(stderr, "Error in recvfrom(): %d\r\n", errno);
                 } else if (numBytes >= MAX_PACKET_SIZE) {
                     fprintf(stderr, "Received packet >= MAX_PACKET_SIZE\r\n");
                 } else {
-                    char s[INET6_ADDRSTRLEN];
-                    in_port_t port;
-                    connection_t *connP;
+                    // Packet received
+                    char s[INET6_ADDRSTRLEN]; // Buffer to hold the IP address
+                    in_port_t port;           // Variable to hold the port number
+                    connection_t *connP;      // Pointer to a connection structure
 
-                    s[0] = 0;
+                    s[0] = 0;                 // Initialize the string buffer
+                    // Checks if address is IPv4 or IPv6
                     if (AF_INET == addr.ss_family) {
+                        // Cast the generic sockaddr to sockaddr_in (IPv4)
                         struct sockaddr_in *saddr = (struct sockaddr_in *)&addr;
+                        // Convert the network address to a presentation format
                         inet_ntop(saddr->sin_family, &saddr->sin_addr, s, INET6_ADDRSTRLEN);
-                        port = saddr->sin_port;
+                        port = saddr->sin_port; // Get the port number
                     } else if (AF_INET6 == addr.ss_family) {
+                        // Cast the generic sockaddr to sockaddr_in6 (IPv6)
                         struct sockaddr_in6 *saddr = (struct sockaddr_in6 *)&addr;
+                        // Convert the network address to a presentation format
                         inet_ntop(saddr->sin6_family, &saddr->sin6_addr, s, INET6_ADDRSTRLEN);
                         port = saddr->sin6_port;
                     }
-
+                    // Print information about the received packet
                     fprintf(stderr, "%zd bytes received from [%s]:%hu\r\n", numBytes, s, ntohs(port));
                     output_buffer(stderr, buffer, (size_t)numBytes, 0);
 
+                    // Find or create a connection structure associated with the sender
                     connP = connection_find(connList, &addr, addrLen);
                     if (connP == NULL) {
+                        // If the connection does not exist, create a new one
                         connP = connection_new_incoming(connList, sock, (struct sockaddr *)&addr, addrLen);
                         if (connP != NULL) {
+                            // If the connection creation is successful, update the connection list
                             connList = connP;
                         }
                     }
                     if (connP != NULL) {
+                        // Valid connection found
+                        // Dispatch the received packet using the LwM2M protocol
                         lwm2m_handle_packet(lwm2mH, buffer, (size_t)numBytes, connP);
                     }
                 }
+            // Since data is not available on socket, check if it is available on stdin.
             } else if (FD_ISSET(STDIN_FILENO, &readfds)) {
                 char *line = NULL;
                 size_t bufLen = 0;
 
+                // Read command from stdin.
                 numBytes = getline(&line, &bufLen, stdin);
 
                 if (numBytes > 1) {
                     line[numBytes] = 0;
+                    // Handle commands received in buffer.
+                    // If command is unknown, print unknown cmd.
                     handle_command(lwm2mH, commands, line);
                     fprintf(stdout, "\r\n");
                 }
                 if (g_quit == 0) {
+                    // if flag for quitting is not raised, print prompt
                     fprintf(stdout, "> ");
+                    // Force the contents of the buffer to be written to the output device immediately.
                     fflush(stdout);
                 } else {
                     fprintf(stdout, "\r\n");
                 }
-
+                // Free allocated memory for command line.
                 lwm2m_free(line);
             }
         }
     }
-
-    lwm2m_close(lwm2mH);
-    close(sock);
-    connection_free(connList);
+    // Clean up resources.
+    lwm2m_close(lwm2mH);       // Close LwM2M context
+    close(sock);               // Close socket
+    connection_free(connList); // Free list of connections
 }
 
 /**
