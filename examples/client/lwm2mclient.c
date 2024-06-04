@@ -81,20 +81,40 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+// Maximum size of a information packet in bytes
+// Used for retrieving the data received
 #define MAX_PACKET_SIZE 2048
+
+// Default IPv6 server address
 #define DEFAULT_SERVER_IPV6 "[::1]"
+
+// Default IPv4 server address
 #define DEFAULT_SERVER_IPV4 "127.0.0.1"
 
+// Flag indicating a reboot
+// Possible values: 
+//     0 - Default value
+//     Any other value triggers reboot process
 int g_reboot = 0;
+// Flag indicating program termination
+// Possible values: 
+//     0 - Default value
+//     1 - Terminate the program forcefully
+//     2 - Initiation of a graceful shutdown
 static int g_quit = 0;
 
+// Number of supported client objects
 #define OBJ_COUNT 9
+
+// Defined in wakaama/include/liblwm2m.h - Line 503
 lwm2m_object_t * objArray[OBJ_COUNT];
 
-// only backup security and server objects
+// Backup security and server objects
+// Used if Bootstrap support is enabled for Lwm2m client
 # define BACKUP_OBJECT_COUNT 2
 lwm2m_object_t * backupObjectArray[BACKUP_OBJECT_COUNT];
 
+// Structure to hold client data
 typedef struct
 {
     lwm2m_object_t * securityObjP;
@@ -102,6 +122,7 @@ typedef struct
     int sock;
 #ifdef WITH_TINYDTLS
     dtls_connection_t * connList;
+    // Defined in wakaama/include/liblwm2m.h - Line 817
     lwm2m_context_t * lwm2mH;
 #else
     connection_t * connList;
@@ -109,6 +130,13 @@ typedef struct
     int addressFamily;
 } client_data_t;
 
+/**
+ * @brief Callback function to quit the LwM2M client.
+ *
+ * @param lwm2mH    Pointer to the LWM2M context.
+ * @param buffer    Pointer to a character buffer.
+ * @param user_data User data.
+ */
 static void prv_quit(lwm2m_context_t * lwm2mH,
                      char * buffer,
                      void * user_data)
@@ -118,19 +146,37 @@ static void prv_quit(lwm2m_context_t * lwm2mH,
     (void)buffer;
     (void)user_data;
 
+    // Set the quit flag to terminate the program
     g_quit = 1;
 }
 
+/**
+ * @brief Signal handler for SIGINT (Ctrl+C) for graceful shutdown.
+ *
+ * @param lwm2mH LwM2M context.
+ * @param uri URI of the resource.
+ */
 void handle_sigint(int signum)
 {
+    // Set the quit flag to initiate a graceful shutdown
     g_quit = 2;
 }
 
+/**
+ * @brief Callback function for handling value changes in resources.
+ *
+ * @param lwm2mH LwM2M context.
+ * @param uri URI of the resource.
+ * @param value New value of the resource.
+ * @param valueLength Length of the new value.
+ */
 void handle_value_changed(lwm2m_context_t * lwm2mH,
                           lwm2m_uri_t * uri,
                           const char * value,
                           size_t valueLength)
 {
+    // Iterate function for finding element in a list of the lwm2m_list_t pointer by id
+    // Return the node with ID 'id' from the list 'head' or NULL if not found
     lwm2m_object_t * object = (lwm2m_object_t *)LWM2M_LIST_FIND(lwm2mH->objectList, uri->objectId);
 
     if (NULL != object)
@@ -206,6 +252,13 @@ void handle_value_changed(lwm2m_context_t * lwm2mH,
 }
 
 #ifdef WITH_TINYDTLS
+/**
+ * @brief Connects to the LwM2M server using DTLS.
+ *
+ * @param secObjInstID Security Object Instance ID.
+ * @param userData User data.
+ * @return void* Pointer to the connection object.
+ */
 void * lwm2m_connect_server(uint16_t secObjInstID,
                             void * userData)
 {
@@ -230,6 +283,13 @@ void * lwm2m_connect_server(uint16_t secObjInstID,
   return (void *)newConnP;
 }
 #else
+/**
+ * @brief Connects to the LwM2M server using CoAP.
+ *
+ * @param secObjInstID Security Object Instance ID.
+ * @param userData User data.
+ * @return void* Pointer to the connection object.
+ */
 void * lwm2m_connect_server(uint16_t secObjInstID,
                             void * userData)
 {
@@ -286,6 +346,12 @@ exit:
 }
 #endif
 
+/**
+ * @brief Closes the connection. If TinyDTLS is used, secure session and target is used.
+ *
+ * @param sessionH Session handler.
+ * @param userData User data.
+ */
 void lwm2m_close_connection(void * sessionH,
                             void * userData)
 {
@@ -306,6 +372,7 @@ void lwm2m_close_connection(void * sessionH,
     if (targetP == app_data->connList)
     {
         app_data->connList = targetP->next;
+        // Free a memory block allocated for target object.
         lwm2m_free(targetP);
     }
     else
@@ -329,6 +396,13 @@ void lwm2m_close_connection(void * sessionH,
     }
 }
 
+/**
+ * @brief Outputs information about bootstrap servers and LWM2M servers.
+ * 
+ * @param lwm2mH       Pointer to the LWM2M context.
+ * @param buffer       Pointer to a character buffer.
+ * @param user_data    Unused parameter.
+ */
 static void prv_output_servers(lwm2m_context_t * lwm2mH,
                                char * buffer,
                                void * user_data)
@@ -416,40 +490,54 @@ static void prv_output_servers(lwm2m_context_t * lwm2mH,
     }
 }
 
+/**
+ * @brief Handles/Changes value of resource or value change reports.
+ * 
+ * @param lwm2mH       Pointer to the LWM2M context.
+ * @param buffer       Pointer to a character buffer.
+ * @param user_data    Unused parameter.
+ */
 static void prv_change(lwm2m_context_t * lwm2mH,
                        char * buffer,
                        void * user_data)
 {
-    lwm2m_uri_t uri;
-    char * end = NULL;
+    lwm2m_uri_t uri; // URI structure
+    char * end = NULL; // Pointer to end of string
     int result;
 
     /* unused parameter */
     (void)user_data;
 
-    end = get_end_of_arg(buffer);
-    if (end[0] == 0) goto syntax_error;
+    end = get_end_of_arg(buffer); // Get the end of the argument
+    if (end[0] == 0) goto syntax_error; // Check for syntax error
 
-    result = lwm2m_stringToUri(buffer, end - buffer, &uri);
-    if (result == 0) goto syntax_error;
+    result = lwm2m_stringToUri(buffer, end - buffer, &uri); // Convert string to URI
+    if (result == 0) goto syntax_error; // Check for conversion error
 
-    buffer = get_next_arg(end, &end);
+    buffer = get_next_arg(end, &end); // Get next argument
 
     if (buffer[0] == 0)
     {
-        fprintf(stderr, "report change!\n");
-        lwm2m_resource_value_changed(lwm2mH, &uri);
+        fprintf(stderr, "report change!\n"); // Output change report
+        lwm2m_resource_value_changed(lwm2mH, &uri); // Handle resource value change
     }
     else
     {
-        handle_value_changed(lwm2mH, &uri, buffer, end - buffer);
+        handle_value_changed(lwm2mH, &uri, buffer, end - buffer); // Handle value change
     }
     return;
 
 syntax_error:
-    fprintf(stdout, "Syntax error !\n");
+    fprintf(stdout, "Syntax error !\n"); // Output syntax error
 }
 
+/**
+ * @brief Outputs a list of registered LWM2M objects and their instances.
+ * 
+ * @param lwm2mH       Pointer to the LWM2M context.
+ * @param buffer       Pointer to a character buffer.
+ * @param user_data    Unused parameter.
+ */
 static void prv_object_list(lwm2m_context_t * lwm2mH,
                             char * buffer,
                             void * user_data)
@@ -478,6 +566,13 @@ static void prv_object_list(lwm2m_context_t * lwm2mH,
     }
 }
 
+/**
+ * @brief Prepares and prints the TLV (Type-Length-Value) data for a given instance of an object.
+ * 
+ * @param lwm2mH       Pointer to the LWM2M context.
+ * @param objectP      Pointer to the LWM2M object structure.
+ * @param id           Instance ID of the object.
+ */
 static void prv_instance_dump(lwm2m_context_t * lwm2mH,
                               lwm2m_object_t * objectP,
                               uint16_t id)
@@ -496,44 +591,62 @@ static void prv_instance_dump(lwm2m_context_t * lwm2mH,
         return;
     }
 
+    // The function prints the TLV data along with its type and value in a structured format,
+    // making it easier for developers to understand and analyze.
     dump_tlv(stdout, numData, dataArray, 0);
 }
 
 
+/**
+ * @brief Prepares and prints the TLV (Type-Length-Value) data for an object and its instances.
+ * 
+ * @param lwm2mH       Pointer to the LWM2M context.
+ * @param buffer       Pointer to a character buffer.
+ * @param user_data    Unused parameter.
+ */
 static void prv_object_dump(lwm2m_context_t * lwm2mH,
                             char * buffer,
                             void * user_data)
 {
-    lwm2m_uri_t uri;
-    char * end = NULL;
-    int result;
-    lwm2m_object_t * objectP;
+    lwm2m_uri_t uri;                // Declaring a URI structure to store the parsed URI.
+    char * end = NULL;              // Pointer to the end of the input buffer.
+    int result;                     // Variable to store the result of operations.
+    lwm2m_object_t * objectP;       // Pointer to the LwM2M object.
 
     /* unused parameter */
     (void)user_data;
 
-    end = get_end_of_arg(buffer);
+    end = get_end_of_arg(buffer);   // Finding the end of the argument in the buffer.
+
+    // Checking if the end of the argument is reached or not.
     if (end[0] == 0) goto syntax_error;
 
+    // Parsing the buffer into URI format.
     result = lwm2m_stringToUri(buffer, end - buffer, &uri);
     if (result == 0) goto syntax_error;
+
+    // Checking if the URI specifies a resource, which is not allowed for dumping objects.
     if (LWM2M_URI_IS_SET_RESOURCE(&uri)) goto syntax_error;
 
+    // Finding the object specified by the URI in the object list of the LwM2M context.
     objectP = (lwm2m_object_t *)LWM2M_LIST_FIND(lwm2mH->objectList, uri.objectId);
     if (objectP == NULL)
     {
+        // Print an error message if the object is not found.
         fprintf(stdout, "Object not found.\n");
         return;
     }
 
+    // If an instance ID is set in a given URI structure, dump only that instance.
     if (LWM2M_URI_IS_SET_INSTANCE(&uri))
     {
         prv_instance_dump(lwm2mH, objectP, uri.instanceId);
     }
     else
     {
-        lwm2m_list_t * instanceP;
-
+        lwm2m_list_t * instanceP; 
+        
+        // Looping through each instance of the object and dumping its information.
         for (instanceP = objectP->instanceList; instanceP != NULL ; instanceP = instanceP->next)
         {
             fprintf(stdout, "Instance %d:\r\n", instanceP->id);
@@ -548,6 +661,14 @@ syntax_error:
     fprintf(stdout, "Syntax error !\n");
 }
 
+/**
+ * @brief Updates the registration of specified server. 
+ * Trigerred once update command is trigerred. Visit lwm2mclient.c line: 1169.
+ * 
+ * @param lwm2mH       Pointer to the LWM2M context.
+ * @param buffer       Pointer to a character buffer containing the server ID.
+ * @param user_data    Unused parameter.
+ */
 static void prv_update(lwm2m_context_t * lwm2mH,
                        char * buffer,
                        void * user_data)
@@ -555,10 +676,12 @@ static void prv_update(lwm2m_context_t * lwm2mH,
     /* unused parameter */
     (void)user_data;
 
-    if (buffer[0] == 0) goto syntax_error;
+    if (buffer[0] == 0) goto syntax_error; // Checking if the buffer is empty.
 
+    // Converting the buffer content to an integer (server ID).
     uint16_t serverId = (uint16_t) atoi(buffer);
-    int res = lwm2m_update_registration(lwm2mH, serverId, false);
+    // Update the registration status of server in the LwM2M context based on the provided server ID.
+    int res = lwm2m_update_registration(lwm2mH, serverId, false); 
     if (res != 0)
     {
         fprintf(stdout, "Registration update error: ");
@@ -572,6 +695,13 @@ syntax_error:
 }
 
 #ifndef LWM2M_VERSION_1_0
+/**
+ * @brief Sends data to specified LWM2M server(s).
+ * 
+ * @param lwm2mH       Pointer to the LWM2M context.
+ * @param buffer       Pointer to a character buffer containing server ID(s) and URI(s).
+ * @param user_data    Unused parameter.
+ */
 static void prv_send(lwm2m_context_t *lwm2mH, char *buffer, void *user_data) {
     lwm2m_uri_t uri;
     lwm2m_uri_t *uris = NULL;
@@ -637,13 +767,18 @@ syntax_error:
 }
 #endif
 
+/**
+ * @brief Updates the simulated battery level and reports it to the LWM2M server.
+ * 
+ * @param context      Pointer to the LWM2M context.
+ */
 static void update_battery_level(lwm2m_context_t * context)
 {
     static time_t next_change_time = 0;
     time_t tv_sec;
 
-    tv_sec = lwm2m_gettime();
-    if (tv_sec < 0) return;
+    tv_sec = lwm2m_gettime(); // Get current time
+    if (tv_sec < 0) return;   // Return if current time is negative
 
     if (next_change_time < tv_sec)
     {
@@ -655,9 +790,9 @@ static void update_battery_level(lwm2m_context_t * context)
         if (0 > level) level = -level;
         if (lwm2m_stringToUri("/3/0/9", 6, &uri))
         {
-            valueLength = sprintf(value, "%d", level);
-            fprintf(stderr, "New Battery Level: %d\n", level);
-            handle_value_changed(context, &uri, value, valueLength);
+            valueLength = sprintf(value, "%d", level);               // Format battery level value
+            fprintf(stderr, "New Battery Level: %d\n", level);       // Output new battery level
+            handle_value_changed(context, &uri, value, valueLength); // Handle value change
         }
         level = rand() % 20;
         if (0 > level) level = -level;
@@ -665,6 +800,13 @@ static void update_battery_level(lwm2m_context_t * context)
     }
 }
 
+/**
+ * @brief Adds a test object to the LWM2M server.
+ * 
+ * @param lwm2mH       Pointer to the LWM2M context.
+ * @param buffer       Pointer to a character buffer.
+ * @param user_data    Unused parameter.
+ */
 static void prv_add(lwm2m_context_t * lwm2mH,
                     char * buffer,
                     void * user_data)
@@ -695,6 +837,13 @@ static void prv_add(lwm2m_context_t * lwm2mH,
     return;
 }
 
+/**
+ * @brief Removes the specified object from the LWM2M server.
+ * 
+ * @param lwm2mH       Pointer to the LWM2M context.
+ * @param buffer       Pointer to a character buffer.
+ * @param user_data    Unused parameter.
+ */
 static void prv_remove(lwm2m_context_t * lwm2mH,
                        char * buffer,
                        void * user_data)
@@ -719,7 +868,13 @@ static void prv_remove(lwm2m_context_t * lwm2mH,
 }
 
 #ifdef LWM2M_BOOTSTRAP
-
+/**
+ * @brief Initiates the bootstrap process by resetting the state and lifetime of bootstrap servers.
+ * 
+ * @param lwm2mH       Pointer to the LWM2M context.
+ * @param buffer       Pointer to a character buffer.
+ * @param user_data    Unused parameter.
+ */
 static void prv_initiate_bootstrap(lwm2m_context_t * lwm2mH,
                                    char * buffer,
                                    void * user_data)
@@ -739,6 +894,13 @@ static void prv_initiate_bootstrap(lwm2m_context_t * lwm2mH,
     }
 }
 
+/**
+ * @brief Displays the backup of security and server objects.
+ * 
+ * @param lwm2mH       Pointer to the LWM2M context.
+ * @param buffer       Pointer to a character buffer.
+ * @param user_data    Unused parameter.
+ */
 static void prv_display_backup(lwm2m_context_t * lwm2mH,
                                char * buffer,
                                void * user_data)
@@ -768,6 +930,11 @@ static void prv_display_backup(lwm2m_context_t * lwm2mH,
    }
 }
 
+/**
+ * @brief Backs up the content of security and server objects.
+ * 
+ * @param context      Pointer to the LWM2M context.
+ */
 static void prv_backup_objects(lwm2m_context_t * context)
 {
     uint16_t i;
@@ -799,6 +966,11 @@ static void prv_backup_objects(lwm2m_context_t * context)
     copy_server_object(backupObjectArray[1], (lwm2m_object_t *)LWM2M_LIST_FIND(context->objectList, LWM2M_SERVER_OBJECT_ID));
 }
 
+/**
+ * @brief Restores the content of security and server objects from backup.
+ * 
+ * @param context      Pointer to the LWM2M context.
+ */
 static void prv_restore_objects(lwm2m_context_t * context)
 {
     lwm2m_object_t * targetP;
@@ -822,6 +994,12 @@ static void prv_restore_objects(lwm2m_context_t * context)
     fprintf(stdout, "[BOOTSTRAP] ObjectList restored\r\n");
 }
 
+/**
+ * @brief Updates the bootstrap information based on changes in the context state.
+ * 
+ * @param previousBootstrapState    Pointer to the previous bootstrap state.
+ * @param context                   Pointer to the LWM2M context.
+ */
 static void update_bootstrap_info(lwm2m_client_state_t * previousBootstrapState,
         lwm2m_context_t * context)
 {
@@ -842,6 +1020,9 @@ static void update_bootstrap_info(lwm2m_client_state_t * previousBootstrapState,
     }
 }
 
+/**
+ * @brief Closes backup objects by cleaning up and freeing memory.
+ */
 static void close_backup_object(void) {
     int i;
     for (i = 0; i < BACKUP_OBJECT_COUNT; i++) {
@@ -864,6 +1045,13 @@ static void close_backup_object(void) {
 }
 #endif
 
+/**
+ * @brief Displays the objects present in the LWM2M context.
+ * 
+ * @param lwm2mH       Pointer to the LWM2M context.
+ * @param buffer       Pointer to a character buffer.
+ * @param user_data    Unused parameter.
+ */
 static void prv_display_objects(lwm2m_context_t *lwm2mH, char *buffer, void *user_data) {
     lwm2m_object_t *object;
 
@@ -905,6 +1093,9 @@ static void prv_display_objects(lwm2m_context_t *lwm2mH, char *buffer, void *use
     }
 }
 
+/**
+ * @brief Prints usage instructions for the LWM2M client.
+ */
 void print_usage(void)
 {
     fprintf(stdout, "Usage: lwm2mclient [OPTION]\r\n");
@@ -927,21 +1118,28 @@ void print_usage(void)
     fprintf(stdout, "\r\n");
 }
 
+/**
+ * @brief Main function.
+ * 
+ * @param argc Argument count - number of arguments.
+ * @param argv Argument vector.
+ * @return Execution status.
+ */
 int main(int argc, char *argv[])
 {
-    client_data_t data;
-    int result;
-    lwm2m_context_t * lwm2mH = NULL;
-    const char * localPort = "56830";
-    const char * server = NULL;
-    const char * serverPort = LWM2M_STANDARD_PORT_STR;
-    const char *name = "testlwm2mclient";
-    int lifetime = 300;
-    int batterylevelchanging = 0;
-    time_t reboot_time = 0;
-    int opt;
-    bool bootstrapRequested = false;
-    bool serverPortChanged = false;
+    client_data_t data; // Structure for client data
+    int result; // Variable to store the result of operations
+    lwm2m_context_t * lwm2mH = NULL; // Pointer to LWM2M context
+    const char * localPort = "56830"; // Default local UDP port
+    const char * server = NULL; // Pointer to server address
+    const char * serverPort = LWM2M_STANDARD_PORT_STR; // Default server port
+    const char *name = "testlwm2mclient"; // Default client name
+    int lifetime = 300; // Default client lifetime
+    int batterylevelchanging = 0; // Flag to indicate battery level change
+    time_t reboot_time = 0; // Time for rebooting
+    int opt; // Variable for command line options
+    bool bootstrapRequested = false; // Flag to indicate bootstrap request
+    bool serverPortChanged = false; // Flag to indicate if server port is changed
 
 #ifdef LWM2M_BOOTSTRAP
     lwm2m_client_state_t previousState = STATE_INITIAL;
